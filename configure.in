@@ -1,0 +1,753 @@
+dnl configure.in:  configure template for ml2vim
+dnl
+dnl This file can be processed by autoconf to produce configure.
+dnl
+dnl Copyright (C) 1998, 1999 Timo Felbinger 
+dnl email: Timo.Felbinger@quantum.physik.uni-potsdam.de
+dnl
+dnl This program is free software; you can redistribute it and/or modify
+dnl it under the terms of the GNU General Public License as published by
+dnl the Free Software Foundation; either version 2, or (at your option)
+dnl any later version.
+dnl
+dnl This program is distributed in the hope that it will be useful,
+dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+dnl GNU General Public License for more details.
+dnl
+dnl You should have received a copy of the GNU General Public License
+dnl along with this program (in a file called LICENSE); if not, write to 
+dnl the Free Software Foundation, Inc., 59 Temple Place - Suite 330, 
+dnl Boston, MA 02111-1307, USA, or look at http://www.gnu.org.
+
+AC_INIT(ml2vim.c)
+
+umask 077
+
+# if we find a cache, we check whether its content is still accurate:
+#
+test "$ac_cv_cache_check" = "" || {
+  echo "configure: found config.cache"
+  test `
+    test -x ./check.label dnl
+      && ./check.label dnl
+      || echo -n "no"
+  ` = "yes" && {
+    echo "configure: found a valid configuration label, cached values can be used" 1>&2
+  } || {
+		cat 1>&2 <<-EOF
+		
+		  configure: fatal: configuration label not found or invalid.
+		  Your cached values may be invalid; I will remove the cache.
+		  Please rerun configure!
+		
+		EOF
+    rm config.cache
+    test -f configuration.label && rm configuration.label
+    exit 1
+  }
+}
+ac_cv_cache_check="check"
+AC_SUBST(ac_cv_cache_check)
+
+test -f configuration.label && rm configuration.label
+
+# the user may help the configure script by predefining values
+# if configure can't figure them out:
+#
+test -f ./site.config && . ./site.config
+
+# autoconf needs config.{sub,guess} and install-sh, which can be
+# installed locally or in some global directory. configure would
+# check for this on its own, but the default error message is 
+# rather terse. we try to be more friendly:
+#
+test "$AUTOCONF_SCRIPT_DIR" = ""  &&  AUTOCONF_SCRIPT_DIR="."
+
+{    test -x $AUTOCONF_SCRIPT_DIR/install-sh dnl
+  && test -x $AUTOCONF_SCRIPT_DIR/config.sub dnl
+  && test -x $AUTOCONF_SCRIPT_DIR/config.guess 
+} || {
+	cat 1>&2 <<-EOF
+
+	  configure: fatal: missing one or more of install-sh, config.{sub,guess}.
+	  These shell-scripts are part of the GNU autoconf package, but are also
+	  distributed as part of many packages which use autoconf.
+	  You can install these files either in the current directory, or in any
+	  other directory which you define in site.config.
+
+	EOF
+  exit 1
+}
+
+AC_CONFIG_AUX_DIR($AUTOCONF_SCRIPT_DIR)
+
+
+
+#
+# do a few early tests of some critical programs:
+#
+
+# whether wc works and accepts the -l argument:
+#
+test `wc -l <<-ac_EOF
+	  test
+	  1, 2, 3
+	  Hello, world!
+	ac_EOF
+` = 3  ||  {
+  echo 'configure: fatal: wc -l failed.' 1>&2
+  exit 1
+}
+
+# # whether tr works and accepts C-like escape sequences
+# #
+# test `{ tr "\n\r" "  " | wc -l ; } <<-ac_EOF
+# 	 	test
+# 	  1, 2, 3
+# 	  Hello, world!
+# 	ac_EOF
+# ` = 0  ||  {
+#   echo 'configure: fatal: tr "\\n\\r" "  " failed.' 1>&2
+#   exit 1
+# }
+
+# whether grep works and accepts some simple regular expressions:
+#
+test `echo "1112222333" | grep -c "^1*2*3*$" ` = 1 || {
+  echo 'configure: fatal: grep -c "^1*2*3*$" failed.' 1>&2
+	exit 1
+}
+
+
+dnl  a macro to help define a variable unless it has already been set:
+dnl
+define(AC_IF_UNDEFINED, [
+  test "$[]$1" = "" \
+    && {
+      $2
+      /bin/true
+    } ||  echo "found predefined variable: $1 = $[]$1" 1>&2
+])
+
+dnl  a macro to bail out if an unexpected error occurs:
+dnl
+define(AC_CONFUSED, [ {
+	cat 1>&2 <<-EOF
+	  
+	  configure: fatal: I just tried to run $1
+	  This looked like a safe bet, but it failed. I am confused and give up.
+	  
+	EOF
+  exit 1
+} ])
+
+dnl  a macro to ensure that a certain seemingly simple command will succeed;
+dnl
+define(AC_MUST_SUCCEED_SIMPLE, [ {
+  { $1 ; } || AC_CONFUSED([$1])
+} ])
+
+dnl  a macro to ensure that a command which can be configured in site.config succeeds:
+dnl
+define(AC_MUST_SUCCEED_CONFIG, [
+  test ` echo "$[]$1" | grep -c "^ *giebtsnich *$" ` = 1 && {
+		cat 1>&2 <<-EOF
+		  
+		  configure: fatal: couldn't figure out how to set $1.
+		  Maybe you can help me out and define it in site.config?
+		  
+		EOF
+    exit 1
+  } || {
+		$[]$1 > /dev/null 2>&1 || {
+			cat 1>&2 <<-EOF
+			  
+			  configure: fatal: currently, I have the definition $1 = $[]$1.
+			  I tried to run this command and it failed.
+			  Maybe you can help me out and define it in site.config?
+			  
+			EOF
+      exit 1
+    }
+  }
+])
+
+dnl a macro to ensure a certain variable has been set, in site.config or by configure:
+dnl
+define(AC_MUST_BE_DEFINED_CONFIG, [
+  test `echo "$[]$1" | grep -c "^ *giebtsnich *$" ` = 1 && {
+		cat 1>&2 <<-EOF
+		  
+		  configure: fatal: could not figure out how to define $1.
+		  Maybe you can help me and define it in site.config?"
+		  
+		EOF
+  }
+])
+
+
+# find the bourne-again shell:
+#
+AC_IF_UNDEFINED(BASH_PATH,[AC_PATH_PROG(BASH_PATH,bash,giebtsnich)])
+test `echo "$BASH_PATH" | grep -c "^ *giebtsnich *$" ` = 1 && {
+	cat 1>&2 <<-EOF
+	
+	  configure: warning: could not find the bourne-again shell; I will use /bin/sh 
+	  instead. I am not sure whether this will work. Good luck!
+	
+	EOF
+  SHELL=/bin/sh
+	HAVE_BASH=0
+} || {
+  SHELL=$BASH_PATH
+	HAVE_BASH=1
+}
+AC_SUBST(HAVE_BASH)
+DEFAULT_SHELL=SHELL
+AC_SUBST(DEFAULT_SHELL)
+
+
+# try some rather obvious things:
+#
+AC_MUST_SUCCEED_SIMPLE([ $SHELL -c echo "Hello, world!" > /dev/null 2>&1 ])
+AC_MUST_SUCCEED_SIMPLE([ /bin/ls -l > /dev/null 2>&1 ])
+
+AC_MUST_SUCCEED_SIMPLE([ dnl
+  test `echo -n 'Hello, world!' | wc -l` = 0 dnl
+])
+
+AC_MUST_SUCCEED_SIMPLE([ dnl
+  test `echo '7 3 4 * + p' | dc` = 19 dnl
+])
+
+# define the current directory; this is used to look for the bulk of
+# the source and configuration files when building binaries in different
+# places:
+#
+echo -n "determining current directory... " 1>&2
+SOURCE_DIR=`pwd`
+AC_MUST_SUCCEED_SIMPLE([ test -d /$[]SOURCE_DIR ])
+AC_MUST_SUCCEED_SIMPLE([ test -f /$[]SOURCE_DIR/configure ])
+echo "$SOURCE_DIR" 1>&2
+AC_SUBST(SOURCE_DIR)
+
+# find the canonical three-part host information string:
+#
+AC_CANONICAL_HOST
+AC_SUBST(host)
+
+# find a command which returns the hostname:
+#
+AC_IF_UNDEFINED(HOSTNAME_COMMAND,[AC_PATH_PROG(HOSTNAME_COMMAND,hostname,giebtsnich)]) 
+AC_MUST_SUCCEED_CONFIG(HOSTNAME_COMMAND)
+AC_SUBST(HOSTNAME_COMMAND)
+
+# find a command which returns the username:
+#
+AC_IF_UNDEFINED(WHOAMI_COMMAND,[AC_PATH_PROG(WHOAMI_COMMAND,whoami,giebtsnich)])
+AC_MUST_SUCCEED_CONFIG(WHOAMI_COMMAND)
+AC_SUBST(WHOAMI_COMMAND)
+
+#  find a command which returns system information. this is mainly to prevent
+#  the results of this configuration run from beeing used accidentally on a
+#  different system: the Makefile will yell if the output of this command
+#  has changed.
+#
+test "$SYSID_COMMAND" = "" && {
+  AC_PATH_PROG(UNAME_PATH,uname,giebtsnich)
+  test `echo "$UNAME_PATH" | grep -c "^ *giebtsnich *$"` = 1 && {
+    SYSID_COMMAND="$HOSTNAME_COMMAND"
+  } || {
+    $UNAME_PATH -a > /dev/null 2>&1 dnl
+      &&  SYSID_COMMAND=" { $HOSTNAME_COMMAND && $UNAME_PATH -a ; } " dnl
+      ||  SYSID_COMMAND=" { $HOSTNAME_COMMAND && $UNAME_PATH    ; } "
+  }
+}
+
+echo -n "checking whether $SYSID_COMMAND works... " 1>&2
+$SHELL -c "$SYSID_COMMAND" > /dev/null 2>&1 && {
+  echo " yes" 1>&2
+} || {
+  echo " no" 1>&2
+	cat 1>&2 <<-EOF
+	
+	  configure: fatal: to the best of my knowledge, I have defined
+	  SYSID_COMMAND=$SYSID_COMMAND
+	  I tried to run this command and it failed. Strange. I give up.
+	
+	EOF
+  exit 1
+}
+
+
+# find a traditional (baroque) date command:
+#
+AC_IF_UNDEFINED(DATE_COMMAND, [ AC_PATH_PROG( DATE_COMMAND, date, giebtsnich ) ] )
+AC_MUST_SUCCEED_CONFIG( DATE_COMMAND )
+
+# find the canonical date command:
+#
+AC_IF_UNDEFINED(UTC_COMMAND, [ AC_PATH_PROG( UTC_COMMAND, utc, giebtsnich ) ] )
+test `echo "$UTC_COMMAND" | grep -c "^ *giebtsnich *$" ` = 1  &&  {
+  HAVE_UTC=0
+  TIME_OF_CONFIGURATION=`$DATE_COMMAND`
+	cat 1>&2 <<-EOF
+
+	  configure: could not find utc. This should not be a problem:
+	  I will set up the Makefile so that it will build one on the fly.
+
+	EOF
+} || {
+  HAVE_UTC=1
+  TIME_OF_CONFIGURATION=`$UTC_COMMAND` || AC_CONFUSED([$UTC_COMMAND])
+}
+AC_SUBST(DATE_COMMAND)
+AC_SUBST(TIME_OF_CONFIGURATION)
+AC_SUBST(HAVE_UTC)
+AC_SUBST(UTC_COMMAND)
+
+
+dnl # check whether we have the buffer command available:
+dnl #
+dnl AC_IF_UNDEFINED( BUFFER_PATH, [AC_PATH_PROG( BUFFER_PATH, buffer, giebtsnich ) ] )
+dnl 
+dnl echo -n "checking whether the buffer command works..." 1>&2
+dnl test "`echo 'Hello, World!' | $BUFFER_PATH -p1 -m28k -s80 2>/dev/null`" = 'Hello, World!' && {
+dnl   echo " yes" 1>&2
+dnl   HAVE_BUFFER=1
+dnl } || {
+dnl   echo " no" 1>&2
+dnl   echo "configure: warning: buffer command not found or not working correctly."  1>&2
+dnl   HAVE_BUFFER=0
+dnl }
+dnl AC_SUBST(HAVE_BUFFER)
+dnl AC_SUBST(BUFFFER_PATH)
+dnl 
+
+# find the C compiler:
+#
+AC_PROG_CC
+AC_SUBST(CC)
+
+OLD_GCC_KLUDGE=0
+test "$GCC" = "yes" && {
+	HAVE_GCC=1
+  echo -n "checking gcc version... " 1>&2
+  version=`$CC --version`
+  gcc_major=`echo $version | sed "s/\..*$//"`
+  gcc_minor=`echo $version | sed "s/^[[0-9]]*\.//" | sed "s/\..*$//"`
+  gcc_release=`echo $version | sed "s/^[[0-9]]*\.//" | sed "s/^[[0-9]]*\.//"`
+  echo -n "major: $gcc_major minor: $gcc_minor release: $gcc_release"
+  test "$gcc_major" -lt 3 && test "$gcc_minor" -lt 8 && {
+    echo "  (uh-oh!)" 1>&2
+		cat 1>&2 <<-EOF
+		
+		  configure: warning: your gcc version seems to be lower than 2.8.
+		  Versions as old as this do not support templates correctly, and have
+		  some other problems.
+		  I will activate some kludges to work around these limitations, but
+		  be prepared for tons of (mostly pointless) compiler warnings.
+		  You definitely want to upgrade your compiler!
+		
+		EOF
+    OLD_GCC_KLUDGE=1
+  } || {
+    echo "  (good)" 1>&2
+  }
+  /bin/true
+} || {
+	HAVE_GCC=0
+	cat 1>&2 <<-EOF
+	
+	  configure: warning: no GNU C compiler found.
+dnl 	  This program will probably not compile without GNU C.
+dnl 	  You may try to continue, but be prepared for tons of warnings and
+dnl 	  error messages. You have been warned. Good luck!
+	
+	EOF
+}
+AC_SUBST(OLD_GCC_KLUDGE)
+AC_SUBST(HAVE_GCC)
+AC_SUBST(GCC_MAJOR)
+AC_SUBST(GCC_MINOR)
+AC_SUBST(GCC_RELEASE)
+
+# find the install program (or script):
+#
+AC_PROG_INSTALL
+AC_SUBST(INSTALL)
+
+# check whether the ANSI headers are available:
+#
+AC_HEADER_STDC
+test "$ac_cv_header_stdc" = "yes" || {
+	cat 1>&2 <<-EOF
+	
+	  configure: trouble: your system doesn't seem to have the ANSI
+	  standard headers.
+	  You may try to continue, but be prepared for tons of warnings and
+	  error messages. You have been warned. Good luck!
+	
+	EOF
+}
+
+# figure out properties of C standard types:
+#
+
+# whether we are big endian or little endian:
+#
+AC_C_BIGENDIAN
+test "$ac_cv_c_bigendian" = "yes" dnl
+  && { IS_BIG_ENDIAN=1 ; IS_LITTLE_ENDIAN=0; } dnl
+  || { IS_BIG_ENDIAN=0 ; IS_LITTLE_ENDIAN=1; } 
+AC_SUBST(IS_BIG_ENDIAN)
+AC_SUBST(IS_LITTLE_ENDIAN)
+
+# whether we have the const type modifier:
+#
+AC_C_CONST
+test "$ac_cv_c_const" = "yes" dnl
+  && { HAVE_CONST=1; CONST_KLUDGE="" ; } dnl
+  || { HAVE_CONST=0; CONST_KLUDGE="#define const "; }
+AC_SUBST(HAVE_CONST)
+AC_SUBST(CONST_KLUDGE)
+
+# whether we have the inline modifier:
+#
+AC_C_INLINE
+
+case "$ac_cv_c_inline" in
+  dnl (   <-- /bin/sh syntax (unlike bash!) is broken: it requires unpaired parentheses!
+  inline | yes )
+    HAVE_INLINE=1
+    INLINE_KLUDGE="" 
+  ;;
+  dnl (   <-- /bin/sh syntax (unlike bash!) is broken: it requires unpaired parentheses!
+  no )
+    HAVE_INLINE=0
+    INLINE_KLUDGE="#define inline " 
+  ;;
+  dnl (   <-- /bin/sh syntax (unlike bash!) is broken: it requires unpaired parentheses!
+  * )
+    # inline might have to be spelled __inline__ or something 
+    HAVE_INLINE=1
+    INLINE_KLUDGE="#define inline $ac_cv_c_inline" 
+ ;;
+esac
+AC_SUBST(HAVE_INLINE)
+AC_SUBST(INLINE_KLUDGE)
+
+#whether we have the long double type:
+#
+AC_C_LONG_DOUBLE
+test "$ac_cv_c_long_double" = "yes" dnl
+  && { HAVE_LONG_DOUBLE=1 ; BIG_DOUBLE="long double"; } dnl
+  || { HAVE_LONG_DOUBLE=0 ; BIG_DOUBLE="double"; }
+AC_SUBST(HAVE_LONG_DOUBLE)
+AC_SUBST(BIG_DOUBLE)
+
+AC_CHECK_SIZEOF(char)
+SIZEOF_CHAR=$ac_cv_sizeof_char
+AC_SUBST(SIZEOF_CHAR)
+# by definition, sizeof(char) must be 1, but we better make sure:
+test "$SIZEOF_CHAR" = "1"  ||  {
+	cat 1>&2 <<-EOF
+	
+	  configure: fatal: I found sizeof(char) == $SIZEOF_CHAR, but ANSI
+	  demands sizeof(char) == 1. Something is terribly screwed. I give up.
+	
+	EOF
+  exit 1 
+}
+
+AC_CHECK_SIZEOF(short int)
+SIZEOF_SHORT_INT=$ac_cv_sizeof_short_int
+AC_SUBST(SIZEOF_SHORT_INT)
+
+AC_CHECK_SIZEOF(int)
+SIZEOF_INT=$ac_cv_sizeof_int
+AC_SUBST(SIZEOF_INT)
+
+AC_CHECK_SIZEOF(long int)
+SIZEOF_LONG_INT=$ac_cv_sizeof_long_int
+AC_SUBST(SIZEOF_LONG_INT)
+
+AC_CHECK_SIZEOF(void *)
+# if we get zero here, the compiler probably doesn't know about void at all:
+SIZEOF_VOID_P=$ac_cv_sizeof_void_p
+test "$SIZEOF_VOID_P" = "0" && {
+	cat 1>&2 <<-EOF
+	
+	  configure: fatal: Your C compiler does not seem to know the void type.
+	  Maybe you can define a compiler flag in site.config to switch on support
+	  for void. Failing that, you better go and get an upgrade for your compiler!
+
+	EOF
+  exit 1
+}
+SIZEOF_POINTER=$ac_cv_sizeof_void_p
+AC_SUBST(SIZEOF_POINTER)
+
+# long long int is a non-standard extension and may or may
+# not be available:
+AC_CHECK_SIZEOF(long long int)
+SIZEOF_LONG_LONG_INT=$ac_cv_sizeof_long_long_int
+test "$SIZEOF_LONG_LONG_INT" = "0" && {
+  HAVE_LONG_LONG_INT=0 
+  BIG_INT="long int"
+  BIG_UNSIGNED="unsigned long int"
+} || {
+  HAVE_LONG_LONG_INT=1
+  BIG_INT="long long int"
+  BIG_UNSIGNED="unsigned long long int"
+}
+AC_SUBST(SIZEOF_LONG_LONG_INT)
+AC_SUBST(HAVE_LONG_LONG_INT)
+AC_SUBST(BIG_INT)
+AC_SUBST(BIG_UNSIGNED)
+
+AC_CHECK_SIZEOF(float)
+SIZEOF_FLOAT=$ac_cv_sizeof_float
+AC_SUBST(SIZEOF_FLOAT)
+
+AC_CHECK_SIZEOF(double)
+SIZEOF_DOUBLE=$ac_cv_sizeof_double
+AC_SUBST(SIZEOF_DOUBLE)
+
+test "$HAVE_LONG_DOUBLE" = "1" && {
+  AC_CHECK_SIZEOF(long double)
+  SIZEOF_LONG_DOUBLE=$ac_cv_sizeof_long_double
+} || {
+  SIZEOF_LONG_DOUBLE=0
+}
+HAVE_LONG_DOUBLE="$HAVE_LONG_DOUBLE"
+AC_SUBST(SIZEOF_LONG_DOUBLE)
+AC_SUBST(HAVE_LONG_DOUBLE)
+
+
+# try to define types of well-defined size:
+#
+cat > conftest.c <<-ac_EOF
+	int main() {
+		unsigned char c = 1;
+		int r;
+		for( r = 0; c; r++ ) c <<= 1;
+		return r;
+	}
+ac_EOF
+echo -n "checking how many bits there are in a char... " 1>&2
+$CC $CFLAGS $LDFLAGS -o conftest conftest.c > /dev/null 2>&1 || {
+	cat 1>&2 <<-EOF
+	
+	  configure: fatal: failed to compile or link the following program:
+	
+	EOF
+  cat conftest.c 1>&2
+  exit 1
+}
+./conftest
+BITS_PER_CHAR=$?
+test "$BITS_PER_CHAR" -gt 0   || {
+	cat 1>&2 <<-EOF
+	
+	  configure: fatal: could not determine number of bits in a char.
+	
+	EOF
+  exit 1
+}
+echo -n "$BITS_PER_CHAR"
+test "$BITS_PER_CHAR" = "8"  && {
+  echo " (good)" 1>&2
+} || {
+  echo " (fascinating)" 1>&2
+	cat 1>&2 <<-EOF
+
+	  configure: warning: it seems that char does not have 8 bits on this 
+	  machine; at least, I figured out a number of $BITS_PER_CHAR bits per char.
+	  I leave it to you to decide whether this makes sense or not.
+	
+	EOF
+}
+rm ./conftest ./conftest.c
+
+
+BITS_PER_SHORT_INT=`echo "$BITS_PER_CHAR $SIZEOF_SHORT_INT * p" | dc`
+BITS_PER_INT=`echo "$BITS_PER_CHAR $SIZEOF_INT * p" | dc`
+BITS_PER_LONG_INT=`echo "$BITS_PER_CHAR $SIZEOF_LONG_INT * p" | dc`
+BITS_PER_LONG_LONG_INT=`echo "$BITS_PER_CHAR $SIZEOF_LONG_LONG_INT * p" | dc`
+BITS_PER_POINTER=`echo "$BITS_PER_CHAR $SIZEOF_POINTER * p" | dc`
+BITS_PER_FLOAT=`echo "$BITS_PER_CHAR $SIZEOF_FLOAT * p" | dc`
+BITS_PER_DOUBLE=`echo "$BITS_PER_CHAR $SIZEOF_DOUBLE * p" | dc`
+BITS_PER_LONG_DOUBLE=`echo "$BITS_PER_CHAR $SIZEOF_LONG_DOUBLE * p" | dc`
+
+AC_SUBST(BITS_PER_CHAR)
+#  we don't export the others as they can be computed trivially at compile time
+
+
+echo -n "seeking INT8 type... " 1>&2
+{ test "$BITS_PER_CHAR" = "8" &&  INT8="signed char"  && UNSIGNED8="unsigned char" &&  HAVE_INT8=1 ; } dnl
+  ||  { HAVE_INT8=0 && INT8="+++INT8 unavailable+++" && UNSIGNED8="+++UNSIGNED8 unavailable+++" ; }
+AC_SUBST(INT8)
+AC_SUBST(UNSIGNED8)
+AC_SUBST(HAVE_INT8)
+echo "$INT8" 1>&2
+
+echo -n "seeking INT16 type... " 1>&2
+{ test "$BITS_PER_SHORT_INT" = "16" && INT16="short int" && UNSIGNED16="unsigned short int" && HAVE_INT16=1 ; } dnl 
+  || { test "$BITS_PER_INT" = "16"  && INT16="int" && UNSIGNED16="unsigned int" && HAVE_INT16=1 ; } dnl
+  || { HAVE_INT16=0 && INT16="+++INT16 unavailable+++" && UNSIGNED16="+++UNSIGNED16 unavailable+++" ; }
+AC_SUBST(INT16)
+AC_SUBST(UNSIGNED16)
+AC_SUBST(HAVE_INT16)
+echo "$INT16" 1>&2
+
+echo -n "seeking INT32 type... " 1>&2
+{ test "$BITS_PER_INT" = "32" && INT32="int" && UNSIGNED32="unsigned int" && HAVE_INT32=1 ; } dnl
+  || { test "$BITS_PER_LONG_INT" = "32"  && INT32="long int" && UNSIGNED32="unsigned long int" && HAVE_INT32=1 ; } dnl
+  || { HAVE_INT32=0 && INT32="+++INT32 unavailable+++" && UNSIGNED32="+++UNSIGNED32 unavailable+++" ; }
+AC_SUBST(INT32)
+AC_SUBST(UNSIGNED32)
+AC_SUBST(HAVE_INT32)
+echo "$INT32" 1>&2
+
+echo -n "seeking INT64 type... " 1>&2
+{ test "$BITS_PER_INT" = "64" && INT64="int" && UNSIGNED64="unsigned int" && HAVE_INT64=1 ; } dnl
+  || { test "$BITS_PER_LONG_INT" = "64"  && INT64="long int" && UNSIGNED64="unsigned long int" && HAVE_INT64=1 ; } dnl
+  || { test "$BITS_PER_LONG_LONG_INT" = "64"  && INT64="long long int" && UNSIGNED64="unsigned long long int" && HAVE_INT64=1 ; } dnl
+  || { HAVE_INT64=0 && INT64="+++INT64 unavailable+++" && UNSIGNED64="+++UNSIGNED64 unavailable+++" ; }
+AC_SUBST(INT64)
+AC_SUBST(UNSIGNED64)
+AC_SUBST(HAVE_INT64)
+echo "$INT64" 1>&2
+
+# find an integer type which can take up a pointer value:
+#
+echo -n "seeking integer type suitable to take up a pointer... " 1>&2
+{ test "$BITS_PER_POINTER" = "32" && INT_FOR_POINTER="$UNSIGNED32" && HAVE_INT_FOR_POINTER="$HAVE_INT32" ; } dnl
+  || { test "$BITS_PER_POINTER" = "64" && INT_FOR_POINTER="$UNSIGNED64" && HAVE_INT_FOR_POINTER="$HAVE_INT64" ; }
+AC_SUBST(INT_FOR_POINTER)
+AC_SUBST(HAVE_INT_FOR_POINTER)
+test "$HAVE_INT_FOR_POINTER" = "1"  && {
+  echo "$INT_FOR_POINTER" 1>&2
+} || {
+  echo "  (none)" 1>&2
+	cat 1>&2 <<-EOF
+	
+	  configure: fatal: cannot find an integer type to take up a pointer value.
+	
+	EOF
+  exit 1
+}
+
+# define types for certain system objects:
+#
+AC_TYPE_MODE_T
+test "$ac_cv_type_mode_t" = "yes" dnl
+  && { HAVE_MODE_T=1; MODE_T_KLUDGE=""; } dnl
+  || { HAVE_MODE_T=0; MODE_T_KLUDGE="#define mode_t int"; }
+AC_SUBST(HAVE_MODE_T)
+AC_SUBST(MODE_T_KLUDGE)
+
+AC_TYPE_SIZE_T
+test "$ac_cv_type_size_t" = "yes" dnl
+  && { dnl
+    HAVE_SIZE_T=1; dnl
+    SIZE_T_KLUDGE=""; dnl
+    SSIZE_T_KLUDGE=""; dnl
+  } || {
+    HAVE_SIZE_T=0; dnl
+    SIZE_T_KLUDGE="#define size_t unsigned int"; dnl
+    SSIZE_T_KLUDGE="#define ssize_t int"; dnl
+  }
+AC_SUBST(HAVE_SIZE_T)
+AC_SUBST(SIZE_T_KLUDGE)
+
+test "$HAVE_SIZE_T" = "1" && {
+  AC_CHECK_SIZEOF(size_t)
+  test "$ac_cv_sizeof_size_t" -lt "$SIZEOF_INT" && {
+		cat 1>&2 <<-EOF
+		
+		  configure: fatal: sizeof(size_t) < sizeof(int). not good.
+		
+		EOF
+    exit 1
+  }
+}
+
+AC_TYPE_PID_T
+test "$ac_cv_type_pid_t" = "yes" dnl
+  && { HAVE_PID_T=1; PID_T_KLUDGE=""; } dnl
+  || { HAVE_PID_T=0; PID_T_KLUDGE="#define pid_t int"; }
+AC_SUBST(HAVE_PID_T)
+AC_SUBST(PID_T_KLUDGE)
+
+AC_TYPE_UID_T
+test "$ac_cv_type_uid_t" = "yes" dnl
+  && { HAVE_UID_T=1; HAVE_GID_T=1; UID_T_KLUDGE=""; GID_T_KLUDGE=""; } dnl
+  || { HAVE_UID_T=0; HAVE_GID_T=0; UID_T_KLUDGE="#define uid_t int"; GID_T_KLUDGE="#define gid_t int"; }
+AC_SUBST(HAVE_UID_T)
+AC_SUBST(HAVE_GID_T)
+AC_SUBST(UID_T_KLUDGE)
+AC_SUBST(GID_T_KLUDGE)
+
+AC_SUBST(CC)
+AC_SUBST(CFLAGS)
+AC_SUBST(CPPFLAGS)
+
+AC_SUBST(MMA_COMMAND)
+
+AC_CHECK_FUNCS(isinf,HAVE_ISINF=1,HAVE_ISINF=0)
+AC_SUBST(HAVE_ISINF)
+
+AC_CHECK_FUNCS(getopt_long,HAVE_GETOPT_LONG=1,HAVE_GETOPT_LONG=0)
+AC_SUBST(HAVE_GETOPT_LONG)
+
+
+AC_OUTPUT(Makefile config.h)
+
+
+# only if we get up to this point do we write a valid configuration label:
+#
+$SHELL -c "$SYSID_COMMAND" > configuration.label && {
+	cat 1>&2 <<-EOF
+
+	  configure: configuration complete; label:
+
+	EOF
+	cat configuration.label | sed "s/^/    /" 1>&2
+	cat 1>&2 <<-EOF
+	
+	  Your have to rerun configure when you move this directory, and,
+	  in particular, when you move or export it to a different system.
+	  To delete all results of this configuration run, you can use the
+	  command \`make distclean'.
+	
+	EOF
+} || {
+	cat 1>&2 <<-EOF
+	
+	  configure: fatal: cannot access configuration label (are the permissions screwed?)
+	
+	EOF
+  exit 1
+}
+cat > check.label <<-ac_EOF
+	#!$SHELL
+	#
+	# check.label: shell script to check whether cached configuration data
+	#              is still valid. This file is created by configure, and
+	#              called from the Makefile, as well as by subsequent runs
+	#              of configure.
+	#
+	newlabel=\`$SHELL -c "$SYSID_COMMAND" \`
+	test -f configuration.label dnl
+	  && oldlabel=\`cat configuration.label\` dnl
+	  || oldlabel="giebtsnich"
+	test "\$newlabel" = "\$oldlabel" dnl
+	  && echo -n "yes" dnl
+	  || echo -n "no"
+ac_EOF
+chmod a+rx check.label
+
+

@@ -1,0 +1,81 @@
+
+Configuring, building and installation:
+
+  (0) This program requires Version 3.0 of the mathlink developer's 
+       kit, which is part of every(?) Mathematica distribution; make 
+       sure you have it installed.
+
+  (1) Edit `site.config' and check whether there are any changes
+      which are obviously required.
+      In particular, make sure that the mathlink header (mathlink.h)
+      and library (libML.a) will be found.
+      Also, specify the command which your system requires to start
+      the mathematica kernel in mathlink mode.
+
+  (2) Run the `configure' script to configure the package for
+      your particular system. If you get warnings or errors,
+      you may have to go back to step (1).
+      In very severe cases, you may edit configure.in and
+      recreate the configure script by running `autoconf'.
+
+  (3) If `configure' has finished successfully, it should have
+      created the following files:
+        config.h:
+          A header file defining system dependend macros; this
+          is created from the template config.h.in.
+        Makefile:
+          The Makefile, created from the template Makefile.in.
+        configuration.label:
+          A description of the system this was configured on, in
+          order to prevent accidental use of the results obtained
+          by configure on a different system.
+        check.label:
+          A short shell script to check whether the configuration
+          data is still valid, by checking the configuration.label.
+        config.cache:
+          Cached results of configure.
+        config.log:
+          Logfile of configure.
+        config.status:
+          Shell script to recreate the current configuration.
+
+  (4) Enter `make' to compile and link the program. If successful, 
+      it will create an executable binary `ml2vim'.
+      You will need the Gnu version of make.
+
+  (5) You can test the binary by running it from the command line. Note
+      however that the program expects descriptor 3 to be open for writing
+      on startup:
+         ./ml2vim 3>&1
+      You can then enter input for mathematica, prefixed with an input tag:
+         i[-42] 3 * 4
+         SUBMIT
+      The SUBMIT should cause the line to be send to the Mathematica kernel
+      for evaluation, and you should get a response like
+         o[-42,1/p] 12
+         M[-42,1] REFRESH
+         M[-42,1] EOC
+         M[-42,1] REFRESH
+
+      This already demonstrates the protocol used for communication between
+      Vim and ml2vim: The -42 is an arbitrary number (must be nonpositive)
+      to be issued by Vim.  The line `o[-42,1/p] 12' contains the actual output,
+      where 1 is Mma's prompt number; in the traditional frontend, you would see
+      `Out[1] 12'.
+      ml2vim sends a REFRESH command (here, triggered by the end of the output
+      block), an EOC (`end of cell'), indicating that no more output, message,
+      text, ... blocks are to follow, and another REFRESH, which is redundant
+      in this simple case (but required in others).
+
+  (6) Copy the binary into some directory in your PATH.
+
+  (7) You may have a look at the file sample.macros and possibly include
+      some in your vimrc.
+
+      In case of problems, you can start ml2vim with the --debug option.
+      Don't do this during production runs, you could flood your HD!
+
+You need the patched sources of Vim (currently, Vim 5.4g-mma0.10) to really
+use ml2vim.
+
+

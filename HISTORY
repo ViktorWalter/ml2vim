@@ -1,0 +1,35 @@
+
+19990202
+  First error-free build of a "proof-of-concept": 0.99.0
+
+19990218
+  First alpha version released: 0.99.7
+
+  Refined the protocol used when talking to Vim:
+  Meta-messages REFRESH and EOC are defined and will be handled.
+
+  Added options: 
+    --piggyback, --refresh
+
+  Added support for command line options:
+    --help, --version, --debug
+  A trace() mechanism is defined which will produce lots of
+  diagnostic output when --debug is given on the command line.
+
+  Many minor bugs eliminated.
+
+  Added support for viewers
+
+  Added option --suppress-... ,  removed obsolete option --display
+
+  Added include-mechanism (similar to C's #include)
+  This required another refinement of the protocol: Tags may now,
+  in certain cases, include ranges of numbers instead of single
+  numbers.
+
+19990429
+  New release: 0.99.8
+
+19990500
+  Update for compatibility with newer MathLink and replacement of deprecated function calls.
+

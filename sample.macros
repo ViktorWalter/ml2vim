@@ -1,0 +1,121 @@
+" sample.macros
+" Timo Felbinger, 1999
+"
+" This contains some suggestions for mappings, user-defined
+" functions and user-defined commands to be used in the
+" Mathematica interface.
+" Add this to your vimrc if you like.
+"
+" !!! This is not meant to be a complete vimrc on its own !!!
+"
+
+
+function ActivateSettings()
+  if ! exists('b:typeoffile')
+    let b:typeoffile = 'unknown'
+  endif
+  if b:typeoffile == 'vma'
+    call VmaSettings()
+  elseif b:typeoffile == 'c'
+    call CSettings()
+  elseif b:typeoffile == 'tex'
+    call TeXSettings()
+  endif
+endfunction
+
+autocmd BufEnter * call ActivateSettings()
+
+function BufReadAny()
+  let b:typeoffile = 'unknown'
+  let b:settings = 'none'
+endfunction
+
+function CheckVma()
+  if( match( getline(1), "^#!\\(/.\\+/\\)\\=vma version 1\\.0$" ) > -1 )
+    let b:typeoffile = 'vma'
+    call VmaSettings()
+  else
+    echo "CheckVma: Nope, this isn't a .vma file, although it has extension .vma!"
+    let b:typeoffile = 'unknown'
+  endif
+endfunction
+
+function CheckC()
+  let b:typeoffile = 'c'
+  call CSettings()
+endfunction
+
+function CheckTeX()
+  let b:typeoffile = 'tex'
+  call TeXSettings()
+endfunction
+
+autocmd BufReadPost * call BufReadAny()
+autocmd BufReadPost *.vma call CheckVma()
+autocmd BufReadPost *.{c,h,cc,hh,c?,h?} call CheckC()
+autocmd BufReadPost *.tex call CheckTeX()
+
+function CSettings()
+  "  enter useful stuff here
+endfunction
+
+function TeXSettings()
+  "  enter useful stuff here
+endfunction
+
+
+
+"  everything down from here requires a customized version of Vim:
+
+
+"
+"  Mathematica related stuff:
+"
+
+function VmaSettings()
+
+  "  find the next input/include block down:
+  noremap ,/i $/^\s*i\(nclude\)\=\[-\=\d\+\(\.\{3}-\=\d\+\)\=\(,\d\+\(\.\{3}\d\+\)\=\)\=]\( .*\)\=$<CR>
+
+  "  find the next input/include block up:
+  noremap ,?i 0?^\s*i\(nclude\)\=\[-\=\d\+\(\.\{3}-\=\d\+\)\=\(,\d\+\(\.\{3}\d\+\)\=\)\=]\( .*\)\=$<CR>
+
+  "  find the input/include block of the current cell:
+  noremap ,i  $?^\s*i\(nclude\)\=\[-\=\d\+\(\.\{3}-\=\d\+\)\=\(,\d\+\(\.\{3}\d\+\)\=\)\=]\( .*\)\=$<CR>
+
+  "  find previous tagged line:
+  noremap ,[  0?^\s*\h\w*\[-\=\d\+\(\.\{3}-\=\d\+\)\=\(,\d\+\(\.\{3}\d\+\)\=\)\=]\( .*\)\=$<CR>
+
+  "  find next tagged line:
+  noremap ,]  $/^\s*\h\w*\[-\=\d\+\(\.\{3}-\=\d\+\)\=\(,\d\+\(\.\{3}\d\+\)\=\)\=]\( .*\)\=$<CR>
+
+  "  evaluate current block:
+  nnoremap ;e $?^\s*i\(nclude\)\=\[-\=\d\+\(\.\{3}-\=\d\+\)\=\(,\d\+\(\.\{3}\d\+\)\=\)\=]\( .*\)\=$<CR>:call mma_eval(line("."))<CR>
+
+  "  evaluate visual selection:
+  vnoremap ;e <ESC>:call mma_eval_range(line{"'<"),line("'>"))
+
+  "  insert new input tag:
+  noremap ;i  o<ESC>ii[0]<ESC>
+
+  "  insert separator line:
+  noremap ;s  o<ESC>68i-<ESC>
+
+  "  delete current block:
+  noremap ;d  $?^\s*\h\w*\[-\=\d\+\(\.\{3}-\=\d\+\)\=\(,\d\+\(\.\{3}\d\+\)\=\)\=]\( .*\)\=$<CR>:call mma_delete_block(line("."))<CR>
+
+  com! Mma call LaunchMma()
+  com! KillMma call kill("mma")
+  com! -range In call mma_eval_range( <line1>, <line2> )
+  com! Abort call mma_abort()
+  com! Stopit call mma_purge_output()
+
+  let b:settings='vma'
+endfunction
+
+function LaunchMma()
+  call mma_reset()
+  call fork("mma","ml2vim")
+  call read_async("mma","mma")
+endfunction
+

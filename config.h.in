@@ -1,0 +1,78 @@
+// config.h.in:  template for config.h, to be processed by configure
+// config.h:     C-header file containing system-dependend parameters
+//
+// This file is part of ml2vim.
+// Copyright (C) 1998 Timo Felbinger 
+// email: Timo.Felbinger@quantum.physik.uni-potsdam.de
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2, or (at your option)
+// any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program (in a file called LICENSE); if not, write to 
+// the Free Software Foundation, Inc., 59 Temple Place - Suite 330, 
+// Boston, MA 02111-1307, USA, or look at http://www.gnu.org.
+
+#ifndef __CONFIG_H
+#define __CONFIG_H
+
+#define VERSION "0.99.8"
+
+#define TIME_OF_CONFIGURATION "@TIME_OF_CONFIGURATION@"
+// #define CONFIGURE_USER "@CONFIGURE_USER@"
+// #define CONFIGURE_HOST "@CONFIGURE_HOST@"
+
+#define HAVE_CONST @HAVE_CONST@
+@CONST_KLUDGE@
+
+#define HAVE_INLINE @HAVE_INLINE@
+@INLINE_KLUDGE@
+
+#define HAVE_LONG_DOUBLE @HAVE_LONG_DOUBLE@
+#define HAVE_LONG_LONG_INT @HAVE_LONG_LONG_INT@ 
+
+#define IS_BIG_ENDIAN @IS_BIG_ENDIAN@
+#define IS_LITTLE_ENDIAN @IS_LITTLE_ENDIAN@
+
+#define BITS_PER_CHAR @BITS_PER_CHAR@
+
+#define HAVE_INT8 @HAVE_INT8@
+#define INT8 @INT8@
+#define UNSIGNED8 @UNSIGNED8@
+
+#define HAVE_INT16 @HAVE_INT16@
+#define INT16 @INT16@
+#define UNSIGNED16 @UNSIGNED16@
+
+#define HAVE_INT32 @HAVE_INT32@
+#define INT32 @INT32@
+#define UNSIGNED32 @UNSIGNED32@
+
+#define HAVE_INT64 @HAVE_INT64@
+#define INT64 @INT64@
+#define UNSIGNED64 @UNSIGNED64@
+
+#define INT_FOR_POINTER @INT_FOR_POINTER@
+
+#define BIG_INT @BIG_INT@
+#define BIG_UNSIGNED @BIG_UNSIGNED@
+#define BIG_DOUBLE @BIG_DOUBLE@
+
+#define HAVE_SIZE_T @HAVE_SIZE_T@
+@SIZE_T_KLUDGE@
+
+#define HAVE_ISINF @HAVE_ISINF@
+
+#define HAVE_GETOPT_LONG  @HAVE_GETOPT_LONG@
+
+#define MMA_COMMAND "@MMA_COMMAND@"
+
+#endif
+

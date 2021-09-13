@@ -1,0 +1,99 @@
+# Makefile.in:  template Makefile, to be processed by configure
+# Makefile:     the Makefile itself, created by running configure
+#
+# Copyright (C) 1999 Timo Felbinger 
+# email: Timo.Felbinger@quantum.physik.uni-potsdam.de
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program (in a file called LICENSE); if not, write to 
+# the Free Software Foundation, Inc., 59 Temple Place - Suite 330, 
+# Boston, MA 02111-1307, USA, or look at http://www.gnu.org.
+
+CC = @CC@
+CFLAGS = -v -O @CFLAGS@
+
+CPPFLAGS = -I@SOURCE_DIR@ -I@SOURCE_DIR@/include -I- @CPPFLAGS@
+LDFLAGS = -v @LDFLAGS@
+LIBS = -lML64i3 -lm @LIBS@ -lpthread -luuid -ldl -lrt
+
+main = ml2vim
+
+ifeq "@HAVE_UTC@" "1"
+  utc_command = @UTC_COMMAND@
+  utc_dep =
+else
+  utc_command = ./utc
+  utc_dep = utc
+endif
+
+# Check whether configure has been run on this system:
+#
+labelcheck=$(shell test -x ./check.label && . ./check.label || echo -n "no" )
+ifneq "$(labelcheck)" "yes"
+
+  .DEFAULT: error
+  .PHONY: error
+  error: ; @{ \
+    echo "Fatal: This program seems to have been configured on a different system, or" 1>&2 \
+  ; echo "       the system has been upgraded or otherwise modified in the meantime." 1>&2 \
+  ; echo "       Please reconfigure by running the configure script!" 1>&2 \
+  ; exit 1 \
+  ; }
+
+else
+
+  # label check succeeded: now we can start doing the real work:
+
+  CTIME = $(shell $(utc_command))
+  CUSER = $(shell @WHOAMI_COMMAND@)
+  CHOST = $(shell @HOSTNAME_COMMAND@)
+  COMPILE = $(CC) -DTIME_OF_COMPILATION=\"$(CTIME)\" -DCOMPILED_BY=\"$(CUSER)\" \
+            -DCOMPILED_ON=\"$(CHOST)\" -c -I. $(CPPFLAGS) $(CFLAGS) 2>&1
+  LOAD = $(CC) $(LDFLAGS) 2>&1
+  MORE = | tee error.e
+
+  all:  $(main)
+
+  $(main):  $(main).o Makefile ; { \
+    rm $(main) >/dev/null 2>&1 || /bin/true \
+  ; $(LOAD) -o $(main) $(main).o $(LIBS) $(MORE) \
+  ; test -x ./$(main) \
+  ; }
+
+  $(main).o: $(main).c Makefile $(utc_dep) \
+             include/jupp.c include/double2decimal.c include/uprintf.c \
+             config.h site.config ; { \
+    rm $(main).o >/dev/null 2>&1 || /bin/true \
+  ; $(COMPILE) $(main).c $(MORE) \
+  ; test -f $(main).o \
+  ; }
+
+  utc: utc.c ; { \
+    $(CC) -v -o utc $(CPPFLAGS) $(CCFLAGS) utc.c -lm \
+  ; chmod a+x ./utc \
+  ; }
+
+endif
+
+.PHONY: clean distclean
+
+clean: ; { \
+  rm error.e $(main) $(main).o utc.o  >/dev/null 2>&1 || /bin/true \
+; }
+
+distclean: clean ; { \
+  rm check.label config.log utc                 >/dev/null 2>&1 || /bin/true \
+; rm config.cache configuration.label config.h  >/dev/null 2>&1 || /bin/true \
+; rm Makefile error.e config.status Makefile    >/dev/null 2>&1 || /bin/true \
+; }
+

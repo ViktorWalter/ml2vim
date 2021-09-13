@@ -1,0 +1,163 @@
+#!vma version 1.0
+--------------------------------------------------------------------
+
+  Display Mma's version information and set some global options:
+
+  i[1] $Version
+  --!piggyback  --!suppress=display  --!refresh=block
+  o[1] Linux 3.0 (April 25, 1997)
+
+--------------------------------------------------------------------
+
+  Simple arithmetics and calculus are of course not a problem:
+
+  i[2]  Integrate[ x^4 * Exp[-x^2], {x,-Infinity,Infinity} ]
+  o[2]
+    3 Sqrt[Pi]
+    ----------
+        4
+--------------------------------------------------------------------
+
+  InputForm is more useful if you want to paste the result into
+  another input line:
+
+  i[3]  InputForm[ Integrate[ x^4 * Exp[-x^2], {x,-Infinity,Infinity} ] ]
+  o[3] (3*Sqrt[Pi])/4
+
+--------------------------------------------------------------------
+
+  Error messages will be displayed:
+
+  i[4]  Integrate[ (x^3 + 4x + 7) / (x^3 + 4*x) , {x,-10,10} ]
+  m[4]
+    Integrate::idiv:
+                                            3
+                                 7 + 4 x + x
+    Integrate::idiv: Integral of ------------ does not converge on {-10, 10}.
+                                          3
+                                   4 x + x
+  o[4]
+                         3
+              7 + 4 x + x
+    Integrate[------------, {x, -10, 10}]
+                       3
+                4 x + x
+
+-----------------------------------------------
+
+  Multiline output can be display with blank lines, as produced by
+  Mathematica,
+
+  i[5] Table[ x+2 + y^3 , {x,5}, {y,8} ]
+  o[5]
+    {{4, 11, 30, 67, 128, 219, 346, 515}, {5, 12, 31, 68, 129, 220, 347, 516}, 
+     
+    >   {6, 13, 32, 69, 130, 221, 348, 517}, {7, 14, 33, 70, 131, 222, 349, 518}, 
+     
+    >   {8, 15, 34, 71, 132, 223, 350, 519}}
+
+
+  ... or in a more compact form, suppressing the blank lines:
+
+  i[6] Table[ x+2 + y^3 , {x,5}, {y,8} ]
+  --noblank
+  o[6]
+    {{4, 11, 30, 67, 128, 219, 346, 515}, {5, 12, 31, 68, 129, 220, 347, 516}, 
+    >   {6, 13, 32, 69, 130, 221, 348, 517}, {7, 14, 33, 70, 131, 222, 349, 518}, 
+    >   {8, 15, 34, 71, 132, 223, 350, 519}}
+
+--------------------------------------------------------------------
+  
+  include statements can be used similar to C:
+
+  include[7...94] /Users/timof/ma/qicNT/matrix.vma
+  --suppress=dummy,output
+
+  This line has been evaluated and Mma has issued numbers 7 through 94
+  to input blocks from the included file. Regular and dummy output are
+  suppressed so it wouldn't clutter this file. Error messages would still
+  have been inserted.
+
+--------------------------------------------------------------------
+
+  Graphics output can be redirected into an external viewer;
+  we first have to redefine the $DisplayFunction:
+
+  i[95] $DisplayFunction = DisplayString[ #, "EPS" ] &;
+  X[95]  ---no output---
+
+--------------------------------------------------------------------
+
+  Now we can plot functions; we suppress the inclusion of the lengthy output
+  into this file but direct it to an external viewer. Note that this example
+  requires ghostscript. Note that comments can be used anywhere within input
+  blocks (be careful with the indentation when using comments!):
+
+  i[96] 
+    Plot3D[
+      Sin[ 3 * Arg[ x + I y ] + Sqrt[ x^2 + y^2 ] ]
+    , { x, -8, 8 }, { y, -8, 8 }
+    , PlotPoints->40
+  %  the following line will set the image size; a similar size argument
+  %  will be passed to ghostscript:
+    , ImageSize->{300,300}
+    ]
+  % in the viewer option, we have to play some tricks:
+  %   - we use `sed' to suppress the showpage command which would
+  %     otherwise clear ghostscript's window again (btw: why???)
+  %   - we need an extra shell to create a pipe from sed to gs.
+  % (yes, this sucks. anyone who knows a better EPS previewer?)
+  --viewer=gs,"bash -c \" sed /^showpage$/d | gs -g320x300 - \" "
+  --suppress=output
+  X[96]  ---no output---
+
+--------------------------------------------------------------------
+
+  If we really want the EPS code in this file, we can have it:
+
+  i[-98,98] 
+    Plot3D[
+      Sin[ 3 * Arg[ x + I y ] + Sqrt[ x^2 + y^2 ] ]
+    , { x, -8, 8 }, { y, -8, 8 }
+    , PlotPoints->40
+    , ImageSize->{300,300}
+    ]
+  --viewer=gs,"bash -c \" sed /^showpage$/d | gs -g320x300 - \" "
+  o[98]
+    %!PS-Adobe-3.0 EPSF-3.0
+    %%Creator: Mathematica-PSRender
+    %%BoundingBox: 0 36 300 264 
+    %%Pages: (atend)
+    %%DocumentNeededResources: (atend)
+    %%EndComments
+    %%BeginProlog
+    /setrgbcolor dup where
+    { pop pop }
+    { { .114 mul exch .587 mul add exch .299 mul add setgray } bind def }
+    ifelse
+    /C /curveto load def
+    /f /fill load def
+    /F { closepath fill } bind def
+
+  ...and so on. You probably want to use Display[] instead to create EPS
+  files. Receiving of this output has been interrupted by a call to
+  `mma_purge_output()'; this which can be seen from the tag i[-98,98] which
+  still contains the negative number, indicating an that not all of Mma's
+  output corresponding to this input block was received.
+
+--------------------------------------------------------------------
+
+  Long-running computations can be aborted (enter `call mma_abort()'
+  on Vim's command line).
+
+  i[99]  FactorInteger[ 2^33 + 3^58 ]
+  o[99] $Aborted
+
+--------------------------------------------------------------------
+
+  The following line indicates an ongoing computation (and I have no
+  idea of how long it would take to complete)
+
+  i[-102]  FactorInteger[ 2^258 + 2^33 ]
+
+
